@@ -1,0 +1,259 @@
+#!/usr/bin/env zsh
+
+# === ПЕРЕМЕННЫЕ ===
+export PS1="%F{blue}spark%f%F{white}@%f%F{yellow}localhost%f: %F{default}"
+export PREFIX="${PREFIX:-$HOME}"
+export binpath="$PREFIX/usr/bin"
+export filpath="$PREFIX/CODE/Go/compiled"
+export PATH="$binpath:$PATH"
+COLUMNS=$(tput cols)
+
+# === БАЗОВЫЕ УТИЛИТЫ ===
+
+# Новая sep
+sep() {
+    local char="${1:-=}"
+    local text="${2:-}"
+    
+    if [[ -z "$text" ]]; then
+        printf '%*s\n' "$COLUMNS" '' | tr ' ' "$char"
+    else
+        local text_len=${#text}
+        local padding=$(( (COLUMNS - text_len - 2) / 2 ))
+        printf '%*s' "$padding" '' | tr ' ' "$char"
+        printf ' %s ' "$text"
+        printf '%*s\n' "$((COLUMNS - padding - text_len - 2))" '' | tr ' ' "$char"
+    fi
+}
+
+# === ОСНОВНЫЕ ФУНКЦИИ ===
+
+warp() {
+    if command -v eza &>/dev/null; then
+        eza -T --git -s extension --icons --all "$@"
+    else
+        command tree -a "$@"
+    fi
+}
+
+weather() {
+    # Проверка наличия аргумента
+    if [ -z "$1" ]; then
+        echo "Ошибка: укажите город"
+        echo "Использование: weather_view <город>"
+        return 1
+    fi
+    
+    local city="$1"
+    
+    # Сохраняем текущий экран и переключаемся в альтернативный буфер
+    printf '\e[?1049h'
+    
+    # Очищаем экран
+    clear
+    
+    # Рисуем figlet по центру
+    figlet -f slant -t -c "$city"
+    
+    # Получаем данные, проверяем успешность запроса
+    local weather_data
+    weather_data=$(curl -s --fail "wttr.in/$city?Tn" 2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ -z "$weather_data" ]; then
+        echo "Ошибка: не удалось получить данные для города '$city'"
+        echo "Проверьте название города и подключение к интернету"
+        echo ""
+        echo "Нажмите любую клавишу для выхода..."
+        read -r -n 1
+        printf '\e[?1049l'
+        return 1
+    fi
+    
+    # Убираем 1 первую и 1  последнюю  строку
+    echo "$weather_data" | sed '1d' | head -n -1
+    
+    echo "Press any key to exit"
+    
+    # Ждём нажатия клавиши (работает в bash и zsh)
+    read -r -n 1 dummy
+    
+    # Возвращаемся в основной буфер
+    printf '\e[?1049l'
+}
+
+pack() {
+    apt update
+    [[ $# -gt 0 ]] && apt install "$@" || apt upgrade  > /dev/null
+}
+
+search() { apt search "$@"; }
+
+latest() {
+    local sessions=$(tmux list-sessions -F "#{session_name} #{session_created}" 2>/dev/null)
+    [[ -z "$sessions" ]] && return 1
+    
+    local latest_session=$(echo "$sessions" | sort -k2 -rn | head -1)
+    local session_name=$(echo "$latest_session" | awk '{print $1}')
+    local session_time=$(echo "$latest_session" | awk '{print $2}')
+    local now=$(date +%s)
+    
+    echo "Сессия: $session_name ($(date -d "@$session_time" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "время неизвестно"))"
+    [[ $(( now - session_time )) -lt 43200 ]] && tmux attach-session -t "$session_name" || echo "Сессия старая, создайте новую"
+}
+
+net() {
+    local sites=(google.com yandex.com amazon.com qq.com baidu.com facebook.com bbc.com reddit.com aliexpress.com wikipedia.org)
+    sep "=" "ТЕСТ СЕТИ"
+    for site in "${sites[@]}"; do
+        # Zsh-способ проверить ping без grep -P
+        local ping_output=$(ping -c 1 -W 2 "$site" 2>/dev/null)
+        if [[ $? -eq 0 ]]; then
+            # Извлекаем время через Zsh-регекс
+            if [[ "$ping_output" =~ "time="([0-9.]+)" ms" ]]; then
+                printf "[ \033[32mOK\033[0m ] %s — %.2fms\n" "$site" "$match[1]"
+            else
+                printf "[ \033[32mOK\033[0m ] %s\n" "$site"
+            fi
+        else
+            printf "[ \033[31mFAIL\033[0m ] %s\n" "$site"
+        fi
+    done
+    sep "="
+}
+
+creature() {
+    local name="$1"
+    local filepath="$binpath/$name"
+
+    if [[ -z "$name" ]]; then
+        echo "Использование: creature <имя_скрипта>"
+        return 1
+    fi
+
+    mkdir -p "$binpath"
+    echo "#!/usr/bin/env zsh" > "$filepath"
+    echo "" >> "$filepath"
+    chmod +x "$filepath"
+
+    # Zsh-версия: пишем в .zshrc
+    if ! grep -q "alias $name=" ~/.zshrc 2>/dev/null; then
+        echo "alias $name='$filepath'" >> ~/.zshrc
+        echo "Добавлен alias '$name' в ~/.zshrc"
+    fi
+
+    command -v hx &>/dev/null && hx "$filepath" || nano "$filepath"
+    echo "Готово! Выполните 'reload' для применения."
+}
+
+# === ЗАМЕТКИ ===
+note() {
+    # Директория для заметок
+    NOTES_DIR="$HOME/.notes"
+
+    # Создаём папку, если её нет
+    mkdir -p "$NOTES_DIR"
+
+    # Если передано имя — берём его, иначе дата
+    if [[ -n "$1" ]]; then
+        FILENAME="$1.txt"
+    else
+        FILENAME="$(date +%Y-%m-%d).txt"
+    fi
+
+    FULL_PATH="$NOTES_DIR/$FILENAME"
+
+    # Открываем в Helix
+    exec hx "$FULL_PATH"
+
+}
+
+# === ВЫБОР И ЗАПУСК ФАЙЛА ===
+selection() {
+    if [ $# -eq 0 ]; then
+        echo "Использование: selection <имя_файла> [аргументы...]"
+        return 1
+    fi
+
+    local filename="$1"
+    shift
+    local found_file=$(find "$HOME" -type f -name "$filename" -print -quit 2>/dev/null)
+
+    if [ -z "$found_file" ]; then
+        echo "Файл '$filename' не найден в $HOME"
+        return 1
+    fi
+
+    echo "Найден файл: $found_file"
+
+    # Устанавливаем права
+    if [ -r "$found_file" ]; then
+        chmod +x "$found_file"
+        echo "Установлены права на выполнение"
+    fi
+
+    # Проверяем shebang
+    if [ -r "$found_file" ]; then
+        local first_line=$(head -n 1 "$found_file")
+        if [[ "$first_line" =~ ^#! ]]; then
+            echo "Обнаружен shebang, запуск..."
+            "$found_file" "$@"
+            return $?
+        fi
+    fi
+
+    # Определяем MIME-тип
+    local mime_type=$(file --mime-type -b "$found_file" 2>/dev/null)
+    local extension="${found_file##*.}"
+
+    case "$mime_type" in
+        text/x-shellscript)
+            echo "Запуск Shell скрипта..."
+            zsh "$found_file" "$@"
+            ;;
+        text/x-python|text/x-python3)
+            echo "Запуск Python скрипта..."
+            python3 "$found_file" "$@"
+            ;;
+        text/x-perl)
+            echo "Запуск Perl скрипта..."
+            perl "$found_file" "$@"
+            ;;
+        text/x-ruby)
+            echo "Запуск Ruby скрипта..."
+            ruby "$found_file" "$@"
+            ;;
+        text/x-lua)
+            echo "Запуск Lua скрипта..."
+            lua "$found_file" "$@"
+            ;;
+        application/x-executable|application/x-sharedlib)
+            "$found_file" "$@"
+            ;;
+        application/javascript|text/javascript)
+            node "$found_file" "$@"
+            ;;
+        *)
+            # Fallback по расширению
+            case "$extension" in
+                lua)    lua "$found_file" "$@" ;;
+                py)     python3 "$found_file" "$@" ;;
+                rb)     ruby "$found_file" "$@" ;;
+                pl)     perl "$found_file" "$@" ;;
+                js)     node "$found_file" "$@" ;;
+                *)      command -v micro &>/dev/null && micro "$found_file" || nano "$found_file" ;;
+            esac
+            ;;
+    esac
+}
+
+# === ИНИЦИАЛИЗАЦИЯ ===
+clear
+[[ -f "$binpat/zshh/SEARCH-FETCH-CONFIG.sh" ]] && source "$binpath/zsh/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
+
+figlet -f slant -t -c "RUSH CLI"
+sep " " "0.1.1 by General Spark Project"
+sep  "=" "FETCH"
+echo
+command -v fastfetch &>/dev/null && fastfetch
+echo
+sep "=" "SHELL"
