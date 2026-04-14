@@ -4,8 +4,9 @@
 export PS1="%F{blue}spark%f%F{white}@%f%F{yellow}localhost%f: %F{default}"
 export PREFIX="${PREFIX:-$HOME}"
 export binpath="$PREFIX/usr/bin"
-export filpath="$PREFIX/CODE/Go/compiled"
-export PATH="$binpath:$PATH"
+export filpath="$PREFIX/FIL/compiled"
+export scripts="$PREFIX/usr/scripts"
+export PATH="$binpath:$filpath:$scripts:$PATH"
 COLUMNS=$(tput cols)
 
 # === БАЗОВЫЕ УТИЛИТЫ ===
@@ -130,7 +131,7 @@ creature() {
         return 1
     fi
 
-    mkdir -p "$binpath"
+    mkdir -p "$scripts"
     echo "#!/usr/bin/env zsh" > "$filepath"
     echo "" >> "$filepath"
     chmod +x "$filepath"
@@ -246,6 +247,40 @@ selection() {
     esac
 }
 
+repo-check() {
+    # Проверяем, что мы в git-репозитории
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        echo "Не в git-репозитории"
+        return 2
+    fi
+
+    # Проверяем, есть ли upstream
+    if ! git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+        echo "Ветка не отслеживает удалённую"
+        return 3
+    fi
+
+    git fetch origin 2>/dev/null
+
+    # Используем rev-list для надёжного сравнения
+    LOCAL=$(git rev-parse @)
+    REMOTE=$(git rev-parse @{u})
+
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        echo "Всё актуально"
+        return 0
+    elif [ "$(git rev-list --count @{u}..@)" -gt 0 ]; then
+        echo "Локальных коммитов больше, чем в origin"
+        return 0
+    else
+        echo "Есть обновления!"
+        return 1
+    fi
+}
+
+command_not_found_handler() {
+    echo "Not found, $1 can be installed by:\n pack $1"
+}
 # === ИНИЦИАЛИЗАЦИЯ ===
 clear
 [[ -f "$binpat/zshh/SEARCH-FETCH-CONFIG.sh" ]] && source "$binpath/zsh/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
