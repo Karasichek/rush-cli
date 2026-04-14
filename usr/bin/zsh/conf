@@ -123,10 +123,9 @@ net() {
 }
 
 creature() {
-    local name="$1"
-    local filepath="$binpath/$name"
+     local filepath="$binpath/$1"
 
-    if [[ -z "$name" ]]; then
+    if [[ -z "$1" ]]; then
         echo "Использование: creature <имя_скрипта>"
         return 1
     fi
@@ -136,14 +135,14 @@ creature() {
     echo "" >> "$filepath"
     chmod +x "$filepath"
 
-    # Zsh-версия: пишем в .zshrc
-    if ! grep -q "alias $name=" ~/.zshrc 2>/dev/null; then
-        echo "alias $name='$filepath'" >> ~/.zshrc
-        echo "Добавлен alias '$name' в ~/.zshrc"
+    # Пишем в .zshrc
+    if ! grep -q "alias $1=" ~/.zshrc 2>/dev/null; then
+        echo "alias $1='$filepath'" >> ~/.zshrc
+        echo "Добавлен alias '$1' в ~/.zshrc"
     fi
 
     command -v hx &>/dev/null && hx "$filepath" || nano "$filepath"
-    echo "Готово! Выполните 'reload' для применения."
+    echo "Готово!"
 }
 
 # === ЗАМЕТКИ ===
@@ -278,12 +277,23 @@ repo-check() {
     fi
 }
 
-command_not_found_handler() {
-    echo "Not found, $1 can be installed by:\n pack $1"
+repo-sync() {
+    cd "$1" || return 1
+    git fetch origin
+    
+    if ! git diff --quiet; then
+        git add .
+        git commit -m "$2" || return 1
+        git push
+        gh pr create --title "$3" --body "$2" 2>/dev/null || echo "PR may already exist"
+    else
+        echo "No changes to commit"
+    fi
 }
+
 # === ИНИЦИАЛИЗАЦИЯ ===
 clear
-[[ -f "$binpat/zshh/SEARCH-FETCH-CONFIG.sh" ]] && source "$binpath/zsh/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
+[[ -f "$binpat/zshh/SEARCH-FETCH-CONFIG" ]] && source "$binpath/zsh/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
 
 figlet -f slant -t -c "RUSH CLI"
 sep " " "0.1.1 by General Spark Project"

@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+
+# === ПЕРЕМЕННЫЕ ===
+export PS1="\001\033[34m\002spark\001\033[37m\002@\001\033[33m\002localhost: \001\033[0m\002"
+export PREFIX="${PREFIX:-/data/data/com.termux/files/home}"
+export binpath="$PREFIX/usr/bin"
+export filpath="$PREFIX/CODE/Go/compiled"
+export PATH="$binpath:$PATH"
+
+# === БАЗОВЫЕ УТИЛИТЫ ===
+sep() {
+    local char="${1:-=}"
+    local text="${2:-}"
+    local width=$(tput cols)
+    
+    if [[ -z "$text" ]]; then
+        printf "%${width}s" | tr ' ' "$char"
+    else
+        local text_len=${#text}
+        local padding=$(( (width - text_len - 2) / 2 ))
+        printf "%${padding}s" | tr ' ' "$char"
+        printf " %s " "$text"
+        printf "%$(( width - padding - text_len - 2 ))s" | tr ' ' "$char"
+    fi
+    echo
+}
+
+# === ОСНОВНЫЕ ФУНКЦИИ ===
+
+warp() {
+    if command -v eza &>/dev/null; then
+        eza -T --git -s extension --icons --all "$@"
+    else
+        command tree -a "$@"
+    fi
+}
+
+pack() {
+    apt update
+    [[ $# -gt 0 ]] && apt install "$@" || apt upgrade -y > /dev/null
+}
+
+search() { apt search "$@"; }
+
+latest() {
+    local sessions=$(tmux list-sessions -F "#{session_name} #{session_created}" 2>/dev/null)
+    [[ -z "$sessions" ]] && return 1
+    
+    local latest_session=$(echo "$sessions" | sort -k2 -rn | head -1)
+    local session_name=$(echo "$latest_session" | awk '{print $1}')
+    local session_time=$(echo "$latest_session" | awk '{print $2}')
+    local now=$(date +%s)
+    
+    echo "Сессия: $session_name ($(date -d "@$session_time" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "время неизвестно"))"
+    [[ $(( now - session_time )) -lt 43200 ]] && tmux attach-session -t "$session_name" || echo "Сессия старая, создайте новую"
+}
+
+net() {
+    local sites=(google.com yandex.com amazon.com qq.com baidu.com facebook.com bbc.com reddit.com aliexpress.com wikipedia.org)
+    sep "=" "ТЕСТ СЕТИ"
+    for site in "${sites[@]}"; do
+        result=$(ping -c 1 -W 2 "$site" 2>/dev/null)
+        if [[ $? -eq 0 ]]; then
+            ping_ms=$(echo "$result" | grep -oP 'time=\K[0-9.]+')
+            echo -e "[ \033[32mOK\033[0m ] $site — ${ping_ms}ms"
+        else
+            echo -e "[ \033[31mFAIL\033[0m ] $site"
+        fi
+    done
+    sep "="
+}
+
+creature() {
+    local name="$1"
+    local filepath="$scripts/$name"
+
+    if [[ -z "$name" ]]; then
+        echo "Использование: creature <name>"
+        return 1
+    fi
+
+    mkdir -p "$binpath"
+    echo "#!/usr/bin/env zsh" > "$filepath"
+    echo "" >> "$filepath"
+    chmod +x "$filepath"
+
+    if ! grep -q "alias $name=" ~/.bashrc 2>/dev/null; then
+        echo "alias $name='$filepath'" >> ~/.bashrc
+        echo "Добавлен alias '$name' в ~/.bashrc"
+    fi
+
+    command -v helix -clipboard internal &>/dev/null && helix -clipboard internal "$filepath" || nano "$filepath"
+    echo "Готово! Выполните 'reload' для применения."
+}
+
+# === ЗАМЕТКИ (Note) ===
+note() {
+    local NOTES_DIR="$HOME/.notes"
+    mkdir -p "$NOTES_DIR"
+    
+    local FILENAME
+    if [ -n "$1" ]; then
+        FILENAME="$1.txt"
+    else
+        FILENAME="$(date +%Y-%m-%d).txt"
+    fi
+    
+    micro -clipboard internal "$NOTES_DIR/$FILENAME"
+}
+
+# === ВЫБОР И ЗАПУСК ФАЙЛА (selection) ===
+selection() {
+    if [ $# -eq 0 ]; then
+        echo "Использование: selection <имя_файла> [аргументы...]"
+        return 1
+    fi
+
+    local filename="$1"
+    shift
+    local found_file=$(find "$HOME" -type f -name "$filename" -print -quit 2>/dev/null)
+
+    if [ -z "$found_file" ]; then
+        echo "Файл '$filename' не найден в $HOME"
+        return 1
+    fi
+
+    echo "Найден файл: $found_file"
+
+    # Устанавливаем права на выполнение
+    if [ -r "$found_file" ]; then
+        chmod +x "$found_file"
+        echo "Установлены права на выполнение"
+    else
+        echo "Предупреждение: файл не читаемый"
+    fi
+
+    # Проверяем shebang первым делом
+    if [ -r "$found_file" ]; then
+        local first_line=$(head -n 1 "$found_file")
+        if [[ "$first_line" =~ ^#! ]]; then
+            echo "Обнаружен shebang, запуск..."
+            "$found_file" "$@"
+            return $?
+        fi
+    fi
+
+    # Определяем тип файла
+    local mime_type=$(file --mime-type -b "$found_file")
+    local extension="${found_file##*.}"
+
+    # Функция для открытия в micro
+    _open_in_micro() {
+        echo "Открытие в micro: $found_file"
+        micro -clipboard internal "$found_file"
+    }
+
+    # Определяем способ запуска по MIME-типу
+    case "$mime_type" in
+        text/x-shellscript)
+            echo "Запуск Bash скрипта..."
+            bash "$found_file" "$@"
+            ;;
+        text/x-python|text/x-python3)
+            echo "Запуск Python скрипта..."
+            python3 "$found_file" "$@"
+            ;;
+        text/x-perl)
+            echo "Запуск Perl скрипта..."
+            perl "$found_file" "$@"
+            ;;
+        text/x-ruby)
+            echo "Запуск Ruby скрипта..."
+            ruby "$found_file" "$@"
+            ;;
+        text/x-lua)
+            echo "Запуск Lua скрипта..."
+            lua "$found_file" "$@"
+            ;;
+        application/x-executable|application/x-sharedlib)
+            echo "Запуск исполняемого файла..."
+            "$found_file" "$@"
+            ;;
+        application/javascript|text/javascript)
+            echo "Запуск Node.js скрипта..."
+            node "$found_file" "$@"
+            ;;
+        application/x-php)
+            echo "Запуск PHP скрипта..."
+            php "$found_file" "$@"
+            ;;
+        *)
+            # Дополнительная проверка по расширению
+            case "$extension" in
+                lua)    echo "Запуск Lua скрипта..."; lua "$found_file" "$@" ;;
+                py)     echo "Запуск Python скрипта..."; python3 "$found_file" "$@" ;;
+                rb)     echo "Запуск Ruby скрипта..."; ruby "$found_file" "$@" ;;
+                pl)     echo "Запуск Perl скрипта..."; perl "$found_file" "$@" ;;
+                js)     echo "Запуск Node.js скрипта..."; node "$found_file" "$@" ;;
+                php)    echo "Запуск PHP скрипта..."; php "$found_file" "$@" ;;
+                *)      _open_in_micro ;;
+            esac
+            ;;
+    esac
+}
+
+# === ИНИЦИАЛИЗАЦИЯ ===
+clear
+. "$binpath/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
+
+sep "=" "FETCH"
+echo
+command -v fastfetch &>/dev/null && fastfetch
+echo
+sep "=" "SHELL"
