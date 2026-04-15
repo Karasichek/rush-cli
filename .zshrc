@@ -1,6 +1,10 @@
 FLAG_FILE="$HOME/FLAG"
 CONF_FILE="/data/data/com.termux/files/home/usr/bin/zsh/conf"
 
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/id_ed25519
+chmod 644 ~/.ssh/id_ed25519.pub
+
 tmux
 . $HOME/usr/bin/zsh/SEARCH-FETCH-CONFIG
 
