@@ -1,12 +1,5 @@
 #!/usr/bin/env zsh
 
-# === ПЕРЕМЕННЫЕ ===
-export PS1="%F{blue}spark%f%F{white}@%f%F{yellow}localhost%f: %F{default}"
-export PREFIX="${PREFIX:-$HOME}"
-export binpath="$PREFIX/usr/bin"
-export filpath="$PREFIX/FIL/compiled"
-export scripts="$PREFIX/usr/scripts"
-export PATH="$binpath:$filpath:$scripts:$PATH"
 COLUMNS=$(tput cols)
 
 # === БАЗОВЫЕ УТИЛИТЫ ===
@@ -31,7 +24,7 @@ sep() {
 
 warp() {
     if command -v eza &>/dev/null; then
-        eza -T --git -s extension --icons --all "$@"
+        eza -T --git -s extension --icons --all --ignore-glob=".termux|.ssh|.local|.npm|.config|tmp|.cache|node_modules|.git" "$@"
     else
         command tree -a "$@"
     fi
@@ -83,8 +76,22 @@ weather() {
 }
 
 pack() {
-    apt update
-    [[ $# -gt 0 ]] && apt install "$@" || apt upgrade  > /dev/null
+    if command -v apt &> /dev/null; then
+        if [[ $# -gt 0 ]]; then
+            sudo apt install "$@"
+        else
+            sudo apt update && sudo apt upgrade
+        fi
+        return
+    elif command -v dnf &> /dev/null; then
+        [[ $# -gt 0 ]] && sudo dnf install "$@" || sudo dnf upgrade
+        return
+    elif command -v pacman &> /dev/null; then
+        [[ $# -gt 0 ]] && sudo pacman -S "$@" || sudo pacman -Syu
+        return
+    else
+        return 1
+    fi
 }
 
 search() { apt search "$@"; }
@@ -123,14 +130,16 @@ net() {
 }
 
 creature() {
-     local filepath="$binpath/$1"
+     local filepath="$SCRIPTS/$1"
 
     if [[ -z "$1" ]]; then
         echo "Использование: creature <имя_скрипта>"
         return 1
     fi
 
-    mkdir -p "$scripts"
+    mkdir -p "$SCRIPTS"
+    touch $filepath
+
     echo "#!/usr/bin/env zsh" > "$filepath"
     echo "" >> "$filepath"
     chmod +x "$filepath"
@@ -142,16 +151,12 @@ creature() {
     fi
 
     command -v hx &>/dev/null && hx "$filepath" || nano "$filepath"
-    echo "Готово!"
 }
 
 # === ЗАМЕТКИ ===
 note() {
-    # Директория для заметок
-    NOTES_DIR="$HOME/.notes"
-
     # Создаём папку, если её нет
-    mkdir -p "$NOTES_DIR"
+    mkdir -p "$NOTES_FOLDER"
 
     # Если передано имя — берём его, иначе дата
     if [[ -n "$1" ]]; then
@@ -281,7 +286,7 @@ repo-sync() {
     cd "$1" || return 1
     git fetch origin
     
-    if ! git diff --quiet; then
+    if ! git diff --quiet HEAD; then
         git add .
         git commit -m "$2" || return 1
         git push
@@ -293,10 +298,10 @@ repo-sync() {
 
 # === ИНИЦИАЛИЗАЦИЯ ===
 clear
-[[ -f "$binpat/zshh/SEARCH-FETCH-CONFIG" ]] && source "$binpath/zsh/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
+[[ -f "$binpath/zsh/SEARCH-FETCH-CONFIG" ]] && source "$binpath/zsh/SEARCH-FETCH-CONFIG.sh" 2>/dev/null
 
-figlet -f slant -t -c "RUSH CLI"
-sep " " "0.1.1 by General Spark Project"
+echo -e "\033[35m$(figlet -f slant -t -c "RUSH")\033[0m"
+sep " " "0.1.4 by General Spark Project"
 sep  "=" "FETCH"
 echo
 command -v fastfetch &>/dev/null && fastfetch
