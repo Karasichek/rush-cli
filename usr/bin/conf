@@ -1,42 +1,70 @@
 #!/usr/bin/env bash
-export PREFIX="${PREFIX:-$HOME}"
-export BINPATH="$PREFIX/usr/bin"
-export FILPATH="$PREFIX/FIL"
-export SCRIPTS="$PREFIX/usr/scripts"
-export PATH="$BINPATH:$FILPATH:$SCRIPTS:$PATH"
 
-mkdir -p "$SCRIPTS"
-mkdir -p "$BINPATH"
+# === ФУНКЦИИ ===
+sep() {
+    local char="${1:-=}"
+    local text="$2"
+    local width=$(tput cols 2>/dev/null || echo 80)
+    if [[ -z "$text" ]]; then
+        printf "%${width}s\n" | tr " " "$char"
+    else
+        echo "$text" | awk -v w="$width" -v c="$char" '{
+            len=length($0);
+            left=int((w-len-2)/2);
+            right=w-len-2-left;
+            for(i=0;i<left;i++) printf c;
+            printf " %s ", $0;
+            for(i=0;i<right;i++) printf c;
+            print ""
+        }'
+    fi
+}
+
+site-check() {
+    local sites=("google.com" "github.com" "yandex.ru")
+    sep "=" "NETWORK"
+    for site in "${sites[@]}"; do
+        ping_output=$(ping -c 1 -W 1 "$site" 2>/dev/null)
+        if [[ $? -eq 0 ]]; then
+            if [[ "$ping_output" =~ time=([0-9.]+) ]]; then
+                printf "[ \033[32mOK\033[0m ] %s — %sms\n" "$site" "${BASH_REMATCH[1]}"
+            else
+                printf "[ \033[32mOK\033[0m ] %s\n" "$site"
+            fi
+        else
+            printf "[ \033[31mFAIL\033[0m ] %s\n" "$site"
+        fi
+    done
+    sep "="
+}
 
 creature() {
-    local name="$1"
-    local filepath="$SCRIPTS/$name"
-    if [[ -z "$name" ]]; then
+    local filepath="$SCRIPTS/$1"
+    if [[ -z "$1" ]]; then
         echo "Использование: creature <имя_скрипта>"
         return 1
     fi
     mkdir -p "$SCRIPTS"
+    touch "$filepath"
     echo "#!/usr/bin/env bash" > "$filepath"
     echo "" >> "$filepath"
     chmod +x "$filepath"
-    if ! grep -q "alias $name=" ~/.bashrc 2>/dev/null; then
-        echo "alias $name=\\'$filepath\\'" >> ~/.bashrc
-        echo "Добавлен alias \'$name\' в ~/.bashrc"
+    if ! grep -q "alias $1=" ~/.bashrc 2>/dev/null; then
+        echo "alias $1='$filepath'" >> ~/.bashrc
+        echo "Добавлен alias '$1' в ~/.bashrc"
     fi
     command -v micro &>/dev/null && micro "$filepath" || nano "$filepath"
-    echo "Готово!"
 }
 
 # === ЗАМЕТКИ ===
 note() {
-    NOTES_DIR="$HOME/.notes"
-    mkdir -p "$NOTES_DIR"
+    mkdir -p "$NOTES_FOLDER"
     if [[ -n "$1" ]]; then
         FILENAME="$1.txt"
     else
         FILENAME="$(date +%Y-%m-%d).txt"
     fi
-    FULL_PATH="$NOTES_DIR/$FILENAME"
+    FULL_PATH="$NOTES_FOLDER/$FILENAME"
     micro "$FULL_PATH"
 }
 
@@ -50,23 +78,37 @@ selection() {
     shift
     local found_file=$(find "$HOME" -type f -name "$filename" -print -quit 2>/dev/null)
     if [ -z "$found_file" ]; then
-        echo "Файл \'$filename\' не найден в $HOME"
+        echo "Файл '$filename' не найден в $HOME"
         return 1
     fi
     echo "Найден файл: $found_file"
-    
-    case "$found_file" in
-        *.sh|*.zsh|*.bash) [ -r "$found_file" ] && bash "$found_file" "$@" ;;
-        *.py) python3 "$found_file" "$@" ;;
-        *.pl) perl "$found_file" "$@" ;;
-        *.rb) ruby "$found_file" "$@" ;;
-        *.lua) lua "$found_file" "$@" ;;
-        *.js) node "$found_file" "$@" ;;
+    if [ -r "$found_file" ]; then
+        chmod +x "$found_file"
+        echo "Установлены права на выполнение"
+    fi
+    if [ -r "$found_file" ]; then
+        local first_line=$(head -n 1 "$found_file")
+        if [[ "$first_line" =~ ^#! ]]; then
+            echo "Обнаружен shebang, запуск..."
+            "$found_file" "$@"
+            return $?
+        fi
+    fi
+    local mime_type=$(file --mime-type -b "$found_file" 2>/dev/null)
+    local extension="${found_file##*.}"
+    case "$mime_type" in
+        text/x-shellscript)
+            echo "Запуск Shell скрипта..."
+            bash "$found_file" "$@"
+            ;;
+        text/x-python|text/x-python3)
+            echo "Запуск Python скрипта..."
+            python3 "$found_file" "$@"
+            ;;
         *)
-            case "$(head -n 1 "$found_file")" in
-                *"/bin/sh"*|*"/bin/bash"*|*"/bin/zsh"*) bash "$found_file" "$@" ;;
-                *"/bin/python"*) python3 "$found_file" "$@" ;;
-                *) [ -x "$found_file" ] && "$found_file" "$@" || echo "Неподдерживаемый тип файла" ;;
+            case "$extension" in
+                py)     python3 "$found_file" "$@" ;;
+                *)      command -v micro &>/dev/null && micro "$found_file" || nano "$found_file" ;;
             esac
             ;;
     esac

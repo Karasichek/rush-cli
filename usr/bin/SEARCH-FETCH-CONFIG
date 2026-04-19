@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Fastfetch конфиг
 if [[ ! -f ~/.config/fastfetch/config.jsonc ]]; then
     mkdir -p ~/.config/fastfetch
@@ -7,55 +6,83 @@ if [[ ! -f ~/.config/fastfetch/config.jsonc ]]; then
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "type": "auto",
+    "type":"auto",
     "padding": {
-      "top": 0,
-      "left": 2,
-      "right": 2
+      "top": 2,
+      "left": 1,
+      "right":1
     }
   },
   "display": {
-    "separator": ": ",
-    "key": {
-      "width": 8
-    }
+    "separator": "  "
   },
   "modules": [
     {
-      "type": "cpu",
-      "key": "CPU",
-      "temp": false,
-      "showPeCoreCount": true
+      "type": "title",
+      "format": "{#1}╭────────────────────────────── {#}{$USRNAME}@{host-name-colored}"
     },
     {
-      "type": "gpu",
-      "key": "GPU"
-    },
-    {
-      "type": "memory",
-      "key": "ОЗУ"
+      "type": "custom",
+      "format": "{#1}│ {#}System Information"
     },
     {
       "type": "os",
-      "key": "ОС"
-    },
-    {
-      "type": "disk",
-      "key": "Память",
-      "folders": "/storage"
-    },
-    "break",
-    {
-      "type": "shell",
-      "key": "Shell"
-    },
-    {
-      "type": "uptime",
-      "key": "Аптайм"
+      "key": "{#separator}│  {#keys}• OS"
     },
     {
       "type": "kernel",
-      "key": "Kernel"
+      "key": "{#separator}│  {#keys}• Kernel"
+    },
+    {
+      "type": "uptime",
+      "key": "{#separator}│  {#keys}• Uptime"
+    },
+    {
+      "type": "packages",
+      "key": "{#separator}│  {#keys}• Packages",
+      "format": "{all}"
+    },
+    {
+      "type": "localip",
+      "key": "{#separator}│  {#keys}• Network (Local IP)"
+    },
+    {
+      "type": "custom",
+      "format": "{#1}│"
+    },
+    {
+      "type": "custom",
+      "format": "{#1}│ {#}Hardware Information"
+    },
+    {
+      "type": "cpu",
+      "key": "{#separator}│  {#keys}• CPU"
+    },
+    {
+      "type": "gpu",
+      "key": "{#separator}│  {#keys}• GPU"
+    },
+    {
+      "type": "memory",
+      "key": "{#separator}│  {#keys}• Memory"
+    },
+    {
+      "type": "disk",
+      "key": "{#separator}│  {#keys}• Disk ($HOME)",
+      "folders": "$HOME"
+    },
+    {
+      "type": "custom",
+      "format": "{#1}│"
+    },
+    {
+      "type": "colors",
+      "key": "{#separator}│",
+      "symbol": "square"
+    },
+    {
+      "type": "custom",
+      "format": "{#1}╰───────────────────────────────────────────────────────────────────────────╯"
     }
   ]
 }

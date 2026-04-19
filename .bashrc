@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # === КАСТОМИЗАЦИЯ ===
 export USRNAME="spark"
 export HSTNAME="localhost"
@@ -13,13 +12,13 @@ export NOTES_FOLDER="$HOME/.notes"
 
 export PREFIX="${PREFIX:-$HOME}"
 export BINPATH="$PREFIX/usr/bin"
-export FILPATH="$PREFIX/FIL"
-export SCRIPTS="$PREFIX/usr/scripts"
+export FILPATH="$PREFIX/FIL/compiled"
+export SCRIPTS="$PREFIX/scripts"
 export PATH="$BINPATH:$FILPATH:$SCRIPTS:$PATH"
 
 # === УСТАНОВКА ПАКЕТОВ ===
 if [ ! -f "$FLAG_FILE" ]; then
-    apt update && apt install -y tmux micro rsync eza fastfetch ncurses-utils git figlet gh gitui fzf xmake lf lua54 lazygit
+    apt update && apt install -y micro xmake rsync eza fastfetch ncurses-utils git figlet lf lua54 lazygit
     touch "$FLAG_FILE"
 fi
 
@@ -29,8 +28,8 @@ chmod 600 ~/.ssh/id_ed25519 2>/dev/null
 chmod 644 ~/.ssh/id_ed25519.pub 2>/dev/null
 
 # === КОНФИГИ ===
-[[ -f "$CONF_FILE" ]] && . "$CONF_FILE"
-[[ -f "$FETCH_FILE" ]] && . "$FETCH_FILE"
+[ -f "$CONF_FILE" ] && . "$CONF_FILE"
+[ -f "$FETCH_FILE" ] && . "$FETCH_FILE"
 
 # === АЛИАСЫ ===
 alias blackout="bash --norc"
@@ -39,7 +38,3 @@ alias config='micro "$CONF_FILE"'
 alias reload="source ~/.bashrc"
 alias backup='rsync -av --delete --inplace --no-owner --no-group --exclude=".cache" --exclude="tmp" --exclude="**/node_modules" ~/ /sdcard/termux/'
 alias backfrom='rsync -av --delete --inplace --no-owner --no-group --chmod=ugo=rwX /sdcard/termux/ ~/'
-alias bin='$HOME/usr/bin'
-
-[[ -n "$TMUX" ]] && trap 'tmux detach' EXIT
-tmux
