@@ -30,11 +30,11 @@ fi
 
 # Обновление списка пакетов
 print_stage "Обновление списка пакетов..."
-apt update
+sudo apt update
 
 # Установка пакетов
 print_stage "Установка пакетов: tmux, helix, xmake, rsync, eza, fastfetch, ncurses-utils, git, figlet, lf, lua5.4, lazygit..."
-apt install -y tmux helix xmake rsync eza fastfetch ncurses-utils git figlet lf lua54
+sudo apt install -y tmux helix xmake rsync eza fastfetch ncurses-utils git figlet lf lua5.4
 
 # Установка lazygit (может отсутствовать в стандартных репозиториях)
 if ! command -v lazygit >/dev/null 2>&1; then
@@ -43,7 +43,7 @@ if ! command -v lazygit >/dev/null 2>&1; then
     if [ -n "$LAZYGIT_VERSION" ]; then
         curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
         tar xf lazygit.tar.gz lazygit
-        install lazygit /usr/local/bin
+        sudo install lazygit /usr/local/bin
         rm -f lazygit lazygit.tar.gz
         print_stage "lazygit успешно установлен"
     else
@@ -51,22 +51,11 @@ if ! command -v lazygit >/dev/null 2>&1; then
     fi
 fi
 
-# Копирование репозитория rush-cli
-print_stage "Клонирование и копирование репозитория Karasichek/rush-cli..."
-TEMP_DIR=$(mktemp -d)
-if git clone --depth 1 https://github.com/Karasichek/rush-cli.git "$TEMP_DIR/rush-cli" 2>/dev/null; then
-    # Копируем всё кроме .git
-    cd "$TEMP_DIR/rush-cli" || exit 1
-    # Используем rsync для копирования с исключением .git
-    rsync -av --exclude='.git' ./ "$HOME/" 2>/dev/null
-    cd - >/dev/null || exit 1
-    rm -rf "$TEMP_DIR"
-    print_stage "Репозиторий скопирован в $HOME"
-else
-    print_error "Не удалось клонировать репозиторий"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
+# Развёртывание конфигурации
+print_stage "Развёртывание конфигурации из текущей директории..."
+# Копируем содержимое текущей директории в $HOME (кроме .git и самого SETUP.sh)
+rsync -av --exclude='.git' --exclude='SETUP.sh' ./ "$HOME/" 2>/dev/null
+print_stage "Конфигурация скопирована в $HOME"
 
 # Настройка ENV для login shell
 print_stage "Настройка окружения login shell..."
@@ -119,10 +108,10 @@ if ! is_excluded "$current_shell"; then
     fi
     
     # Добавляем rush-cli в PATH если нужно
-    if [ -d "$HOME/.local/bin" ] && ! grep -q "PATH.*\.local/bin" "$profile_file"; then
+    if [ -d "$HOME/usr/bin" ] && ! echo "$PATH" | grep -q "$HOME/usr/bin"; then
         echo "" >> "$profile_file"
-        echo "# Add local bin to PATH" >> "$profile_file"
-        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$profile_file"
+        echo "# Add rush-cli bin to PATH" >> "$profile_file"
+        echo "export PATH=\"\$HOME/usr/bin:\$PATH\"" >> "$profile_file"
     fi
     
     echo "${GREEN}✓ Установлен ENV=$shrc_file для shell: $current_shell${RESET}"
@@ -131,12 +120,30 @@ if ! is_excluded "$current_shell"; then
     export ENV="$HOME/.shrc"
 else
     echo "${GREEN}✓ Shell ($current_shell) имеет собственную конфигурацию, .shrc не требуется${RESET}"
+    
+    # Для zsh/bash также добавим путь к бинарникам в PATH если нужно
+    config_file=""
+    if [ "$current_shell" = "zsh" ]; then
+        config_file="$HOME/.zshrc"
+    elif [ "$current_shell" = "bash" ]; then
+        config_file="$HOME/.bashrc"
+    fi
+    
+    if [ -n "$config_file" ]; then
+        if [ -d "$HOME/usr/bin" ] && ! grep -q "usr/bin" "$config_file" 2>/dev/null; then
+            echo "export PATH=\"\$HOME/usr/bin:\$PATH\"" >> "$config_file"
+        fi
+    fi
 fi
 
 print_stage "Установка завершена успешно!"
 
-# Запуск login shell снова
-print_stage "Запуск login shell..."
-
-# Очистка и перезапуск shell
-exec "$SHELL" -l
+# Запуск shell
+print_stage "Запуск оболочки..."
+if command -v zsh >/dev/null 2>&1; then
+    exec zsh
+elif command -v bash >/dev/null 2>&1; then
+    exec bash
+else
+    exec sh
+fi
