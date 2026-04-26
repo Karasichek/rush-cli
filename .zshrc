@@ -15,6 +15,7 @@ export BINPATH="$PREFIX/usr/bin"
 export FILPATH="$PREFIX/FIL/compiled"
 export SCRIPTS="$PREFIX/scripts"
 export PATH="$BINPATH:$FILPATH:$SCRIPTS:$PATH"
+export BACKUP_FOLDER="/sdcard/termux/"
 
 # === УСТАНОВКА ПАКЕТОВ ===
 if [ ! -f "$FLAG_FILE" ]; then
@@ -40,5 +41,5 @@ alias reload="source ~/.zshrc"
 alias aliases="hx $ALIAS_FILE"
 
 # === БЭКАПЫ ===
-alias backup='rsync -av --delete --inplace --no-owner --no-group --exclude=".cache" --exclude=".npm" --exclude="**/node_modules" ~/ /sdcard/termux/'
-alias backfrom='rsync -av --delete --inplace --no-owner --no-group --chmod=ugo=rwX /sdcard/termux/ ~/'
+alias backup='rsync -av -q --delete --inplace --no-owner --no-group --exclude=".cache" --exclude=".npm" --exclude="**/node_modules" ~/ $BACKUP_FOLDER'
+alias backfrom='rsync -av -q --delete --inplace --no-owner --no-group --chmod=ugo=rwX $BACKUP_FOLDER ~/'
