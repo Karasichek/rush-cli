@@ -21,7 +21,7 @@ if [[ ! -f ~/.config/fastfetch/config.jsonc ]]; then
     // Title
     {
       "type": "title",
-      "format": "{#1}╭────────────────────────────── {#}{$USRNAME}@{host-name-colored}"
+      "format": "{#1}╭────────────────────────────── {#}{$USRNAME}@{$HSTNAME}"
     },
     // System Information
     {
@@ -56,11 +56,11 @@ if [[ ! -f ~/.config/fastfetch/config.jsonc ]]; then
     },
     {
       "type": "localip",
-      "key": "{#separator}│  {#keys}• Network (Local IP)"
+      "key": "{#separator}│  {#keys}• Local IP"
     },
     {
       "type": "publicip",
-      "key": "{#separator}│  {#keys}• Network (Public IP)"
+      "key": "{#separator}│  {#keys}• Public IP"
     },
         {
       "type": "wifi",
