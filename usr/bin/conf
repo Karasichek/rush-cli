@@ -27,7 +27,7 @@ site-check() {
         ping_output=$(ping -c 1 -W 1 "$site" 2>/dev/null)
         if [[ $? -eq 0 ]]; then
             if [[ "$ping_output" =~ time=([0-9.]+) ]]; then
-                printf "[ \033[32mOK\033[0m ] %s — %sms\n" "$site" "${BASH_REMATCH[1]}"
+                printf "[ \033[32mOK\033[0m ] %s — %s ms\n" "$site" "${BASH_REMATCH[1]}"
             else
                 printf "[ \033[32mOK\033[0m ] %s\n" "$site"
             fi
@@ -54,6 +54,32 @@ creature() {
         echo "Добавлен alias '$1' в ~/.bashrc"
     fi
     command -v micro &>/dev/null && micro "$filepath" || nano "$filepath"
+}
+
+bandage() {
+    local TARGET_FILE="${ALIAS_FILE:-${HOME}/usr/aliases.sh}"
+    
+    echo "╭" && sep "─" "Creating alias"
+    
+    echo -n "│ Alias name: "
+    read -r ALIAS_NAME
+    echo -n "│ For command: "
+    read -r ALIAS_COMMAND
+    echo -n "│ Some description: "
+    read -r ALIAS_DESCRIPTION
+    
+    echo "╰" && sep "─" ""
+    
+    # Экранируем кавычки в команде
+    local ESCAPED_COMMAND=$(printf "%q" "$ALIAS_COMMAND")
+    local ALIAS_LINE="# ${ALIAS_NAME}: ${ALIAS_DESCRIPTION}\nalias ${ALIAS_NAME}=\"${ESCAPED_COMMAND}\""
+    
+    mkdir -p "$(dirname "$TARGET_FILE")"
+    echo -e "\n${ALIAS_LINE}" >> "$TARGET_FILE"
+
+    source "$TARGET_FILE" 2>/dev/null
+
+    echo "Алиас '$ALIAS_NAME' добавлен в $TARGET_FILE"
 }
 
 # === ЗАМЕТКИ ===
