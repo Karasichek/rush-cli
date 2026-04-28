@@ -33,8 +33,8 @@ print_stage "Обновление списка пакетов..."
 sudo apt update
 
 # Установка пакетов
-print_stage "Установка пакетов: tmux, helix, xmake, rsync, eza, fastfetch, ncurses-utils, git, figlet, lf, lua5.4, lazygit..."
-sudo apt install -y tmux helix xmake rsync eza fastfetch ncurses-utils git figlet lf lua5.4
+print_stage "Установка пакетов: tmux, helix, xmake, rsync, eza, fastfetch, ncurses-utils, git, figlet, lf, lua5.4, lazygit, miniserve..."
+sudo apt install -y tmux helix xmake rsync eza fastfetch ncurses-utils git figlet lf lua5.4 miniserve
 
 # Установка lazygit (может отсутствовать в стандартных репозиториях)
 if ! command -v lazygit >/dev/null 2>&1; then
@@ -59,7 +59,6 @@ print_stage "Конфигурация скопирована в $HOME"
 
 # Настройка ENV для login shell
 print_stage "Настройка окружения login shell..."
-
 # Получаем имя текущей login shell
 current_shell=$(basename "$SHELL")
 

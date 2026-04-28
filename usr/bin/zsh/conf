@@ -84,6 +84,28 @@ bandage() {
     echo "Алиас '$ALIAS_NAME' добавлен в $TARGET_FILE"
 }
 
+view-docs() {
+    local DOCS_DIR="${HOME}/rush-cli/site"
+    if [ ! -d "$DOCS_DIR" ]; then
+        echo "Документация не собрана. Запустите 'mkdocs build' в директории проекта."
+        return 1
+    fi
+    
+    local PORT=8080
+    echo "Запуск сервера документации на http://localhost:$PORT"
+    
+    # Попытка открыть браузер (Termux / Linux / macOS)
+    if command -v termux-open-url >/dev/null 2>&1; then
+        termux-open-url "http://localhost:$PORT"
+    elif command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "http://localhost:$PORT" >/dev/null 2>&1
+    elif command -v open >/dev/null 2>&1; then
+        open "http://localhost:$PORT"
+    fi
+    
+    miniserve "$DOCS_DIR" -p "$PORT" --index index.html
+}
+
 # === ЗАМЕТКИ ===
 note() {
     mkdir -p "$NOTES_FOLDER"
