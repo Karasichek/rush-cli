@@ -39,6 +39,38 @@ site-check() {
     sep "="
 }
 
+rush() {
+    case "$1" in
+        update)
+            local repo_dir="${HOME}/rush-cli"
+            if [ ! -d "$repo_dir" ]; then
+                echo "Директория репозитория не найдена: $repo_dir"
+                return 1
+            fi
+            
+            (
+                cd "$repo_dir" || exit 1
+                echo "Проверка обновлений..."
+                git fetch origin master 2>/dev/null
+                
+                LOCAL=$(git rev-parse @)
+                REMOTE=$(git rev-parse @{u} 2>/dev/null || git rev-parse origin/master)
+                
+                if [ "$LOCAL" = "$REMOTE" ]; then
+                    echo "У вас уже установлена актуальная версия."
+                else
+                    echo "Доступно обновление. Загрузка..."
+                    git pull origin master
+                    echo "Обновление завершено. Перезапустите оболочку: reload"
+                fi
+            )
+            ;;
+        *)
+            echo "Использование: rush update"
+            ;;
+    esac
+}
+
 weather() {
     if [ -z "$1" ]; then
         echo "Ошибка: укажите город"
