@@ -18,6 +18,10 @@ export SCRIPTS="$PREFIX/scripts"
 export PATH="$BINPATH:$FILPATH:$SCRIPTS:$PATH"
 export BACKUP_FOLDER="/sdcard/termux/"
 
+# === PATH ===
+export LUA_PATH="$HOME/usr/lua/?.lua;;"
+export LUA_CPATH="$HOME/usr/lua/?.so;;"
+
 # === УСТАНОВКА ПАКЕТОВ ===
 if [ ! -f "$FLAG_FILE" ]; then
     apt update && apt install -y micro xmake rsync eza fastfetch ncurses-utils git figlet lua54 lazygit fzf lf tgpt
