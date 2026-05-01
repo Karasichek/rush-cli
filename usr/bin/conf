@@ -38,6 +38,69 @@ site-check() {
     sep "="
 }
 
+weather() {
+    if [ -z "$1" ]; then
+        echo "Ошибка: укажите город"
+        echo "Использование: weather <город>"
+        return 1
+    fi
+    local city="$1"
+    printf '\e[?1049h'
+    clear
+    figlet -f slant -t -c "$city"
+    local weather_data=$(curl -s --fail "wttr.in/$city?Tn" 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$weather_data" ]; then
+        echo "Ошибка: не удалось получить данные для города '$city'"
+        read -r -n 1
+        printf '\e[?1049l'
+        return 1
+    fi
+    echo "$weather_data" | sed '1d' | head -n -1
+    echo "Press any key to exit"
+    read -r -n 1 dummy
+    printf '\e[?1049l'
+}
+
+pack() {
+    if command -v apt &> /dev/null; then
+        if [[ $# -gt 0 ]]; then
+            sudo apt install "$@"
+        else
+            sudo apt update && sudo apt upgrade
+        fi
+        return
+    elif command -v dnf &> /dev/null; then
+        [[ $# -gt 0 ]] && sudo dnf install "$@" || sudo dnf upgrade
+        return
+    elif command -v pacman &> /dev/null; then
+        [[ $# -gt 0 ]] && sudo pacman -S "$@" || sudo pacman -Syu
+        return
+    else
+        return 1
+    fi
+}
+
+search() {
+    if command -v apt &> /dev/null; then
+        apt search "$@"
+    elif command -v dnf &> /dev/null; then
+        dnf search "$@"
+    elif command -v pacman &> /dev/null; then
+        pacman -Ss "$@"
+    fi
+}
+
+latest() {
+    local sessions=$(tmux list-sessions -F "#{session_name} #{session_created}" 2>/dev/null)
+    [[ -z "$sessions" ]] && return 1
+    local latest_session=$(echo "$sessions" | sort -k2 -rn | head -1)
+    local session_name=$(echo "$latest_session" | awk '{print $1}')
+    local session_time=$(echo "$latest_session" | awk '{print $2}')
+    local now=$(date +%s)
+    echo "Сессия: $session_name ($(date -d "@$session_time" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "время неизвестно"))"
+    [[ $(( now - session_time )) -lt 43200 ]] && tmux attach-session -t "$session_name" || echo "Сессия старая, создайте новую"
+}
+
 creature() {
     local filepath="$SCRIPTS/$1"
     if [[ -z "$1" ]]; then
@@ -58,27 +121,19 @@ creature() {
 
 bandage() {
     local TARGET_FILE="${ALIAS_FILE:-${HOME}/usr/aliases.sh}"
-    
     echo "╭" && sep "─" "Creating alias"
-    
     echo -n "│ Alias name: "
     read -r ALIAS_NAME
     echo -n "│ For command: "
     read -r ALIAS_COMMAND
     echo -n "│ Some description: "
     read -r ALIAS_DESCRIPTION
-    
     echo "╰" && sep "─" ""
-    
-    # Экранируем кавычки в команде
     local ESCAPED_COMMAND=$(printf "%q" "$ALIAS_COMMAND")
     local ALIAS_LINE="# ${ALIAS_NAME}: ${ALIAS_DESCRIPTION}\nalias ${ALIAS_NAME}=\"${ESCAPED_COMMAND}\""
-    
     mkdir -p "$(dirname "$TARGET_FILE")"
     echo -e "\n${ALIAS_LINE}" >> "$TARGET_FILE"
-
     source "$TARGET_FILE" 2>/dev/null
-
     echo "Алиас '$ALIAS_NAME' добавлен в $TARGET_FILE"
 }
 
@@ -88,11 +143,8 @@ view-docs() {
         echo "Документация не собрана. Запустите 'mkdocs build' в директории проекта."
         return 1
     fi
-    
     local PORT=8080
     echo "Запуск сервера документации на http://localhost:$PORT"
-    
-    # Попытка открыть браузер (Termux / Linux / macOS)
     if command -v termux-open-url >/dev/null 2>&1; then
         termux-open-url "http://localhost:$PORT"
     elif command -v xdg-open >/dev/null 2>&1; then
@@ -100,7 +152,6 @@ view-docs() {
     elif command -v open >/dev/null 2>&1; then
         open "http://localhost:$PORT"
     fi
-    
     miniserve "$DOCS_DIR" -p "$PORT" --index index.html
 }
 
