@@ -285,7 +285,7 @@ repo-sync() {
 # === ИНИЦИАЛИЗАЦИЯ ===
 clear
 echo -e "\033[35m$(figlet -f slant -t -c "RUSH")\033[0m"
-sep " " "0.1.4 by General Spark Project"
+sep " " "$RUSH_VERS by General Spark Project"
 sep "=" "FETCH"
 echo
 command -v fastfetch &>/dev/null && fastfetch

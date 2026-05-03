@@ -1,3 +1,5 @@
+export RUSH_VERS="1.4.0"
+
 # === КАСТОМИЗАЦИЯ ===
 export USRNAME="spark"
 export HSTNAME="localhost"
