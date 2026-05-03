@@ -1,20 +1,23 @@
-site_name: RUSH CLI
+site_name: RUSH CLI | Docs
 site_description: Современная CLI-надстройка для Bash, Sh и Zsh
 site_author: General Spark Project
 
 theme:
   name: material
   language: ru
+  font:
+    text: Roboto # Основной шрифт MD3
+    code: Roboto Mono # Моноширинный шрифт
   palette:
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -41,3 +44,6 @@ nav:
   - Установка: installation.md
   - Функции: features.md
   - Структура: structure.md
+
+extra_css:
+  - stylesheets/extra.css
