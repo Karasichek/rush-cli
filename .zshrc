@@ -1,4 +1,5 @@
 export RUSH_VERS="1.4.0"
+export DISABLE_AUTO_UPDATE="true"
 
 # === КАСТОМИЗАЦИЯ ===
 export USRNAME="spark"
@@ -23,6 +24,13 @@ export BACKUP_FOLDER="/sdcard/termux/"
 export LUA_PATH="$HOME/usr/lua/?.lua;;"
 export LUA_CPATH="$HOME/usr/lua/?.so;;"
 
+# === NVM LAZY LOAD ===
+nvm() {
+    unset -f nvm
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    nvm "$@"
+}
+
 # === УСТАНОВКА ПАКЕТОВ ===
 if [ ! -f "$FLAG_FILE" ]; then
     apt update && apt install -y helix xmake rsync eza fastfetch ncurses-utils git figlet lua54 lazygit fzf lf tgpt
@@ -38,6 +46,10 @@ chmod 644 ~/.ssh/id_ed25519.pub
 . $CONF_FILE
 . $FETCH_FILE
 . $ALIAS_FILE
+
+# === ПЛАГИНЫ ===
+# fzf-tab: улучшенное дополнение через fzf
+[ -f "$HOME/.fzf-tab/fzf-tab.plugin.zsh" ] && source "$HOME/.fzf-tab/fzf-tab.plugin.zsh"
 
 # === АЛИАСЫ ===
 alias blackout="zsh --no-rcs"

@@ -135,6 +135,12 @@ else
     fi
 fi
 
+# Установка fzf-tab для Zsh
+if [ ! -d "$HOME/.fzf-tab" ]; then
+    print_stage "Установка fzf-tab..."
+    git clone https://github.com/Aloxaf/fzf-tab "$HOME/.fzf-tab"
+fi
+
 print_stage "Установка завершена успешно!"
 
 # Запуск shell

@@ -1,4 +1,5 @@
 export RUSH_VERS="1.4.0"
+export DISABLE_AUTO_UPDATE="true"
 
 # === КАСТОМИЗАЦИЯ ===
 export USRNAME="spark"
@@ -23,6 +24,13 @@ export BACKUP_FOLDER="/sdcard/termux/"
 # === PATH ===
 export LUA_PATH="$HOME/usr/lua/?.lua;;"
 export LUA_CPATH="$HOME/usr/lua/?.so;;"
+
+# === NVM LAZY LOAD ===
+nvm() {
+    unset -f nvm
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    nvm "$@"
+}
 
 # === УСТАНОВКА ПАКЕТОВ ===
 if [ ! -f "$FLAG_FILE" ]; then
