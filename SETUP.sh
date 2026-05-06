@@ -53,8 +53,16 @@ fi
 
 # Развёртывание конфигурации
 print_stage "Развёртывание конфигурации из текущей директории..."
+# Создаем бэкап существующих конфигов перед заменой
+BACKUP_DIR="$HOME/.rush_backup_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+for f in .bashrc .zshrc .shrc usr; do
+    [ -e "$HOME/$f" ] && cp -rf "$HOME/$f" "$BACKUP_DIR/"
+done
+print_stage "Бэкап создан в $BACKUP_DIR"
+
 # Копируем содержимое текущей директории в $HOME (кроме .git и самого SETUP.sh)
-rsync -av --exclude='.git' --exclude='SETUP.sh' ./ "$HOME/" 2>/dev/null
+rsync -av --exclude='.git' --exclude='SETUP.sh' --exclude='README.md' --exclude='docs' --exclude='mkdocs.yml' ./ "$HOME/" 2>/dev/null
 print_stage "Конфигурация скопирована в $HOME"
 
 # Настройка ENV для login shell
