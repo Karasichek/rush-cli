@@ -2,6 +2,25 @@
 
 # === ОБЩИЕ ФУНКЦИИ RUSH CLI ===
 
+# Функция для запуска команд с повышением привилегий
+run_as_root() {
+    if [ "$(id -u)" -eq 0 ]; then
+        # Уже root
+        "$@"
+    else
+        # Не root
+        if command -v sudo >/dev/null 2>&1; then
+            sudo "$@"
+        elif command -v doas >/dev/null 2>&1; then
+            doas "$@"
+        elif command -v su >/dev/null 2>&1; then
+            su -c "$*"
+        else
+            "$@"
+        fi
+    fi
+}
+
 # Разделитель
 sep() {
     local char="${1:-=}"
@@ -22,15 +41,16 @@ sep() {
     fi
 }
 
-# Проверка сети
+# Проверка сети (расширенная)
 site-check() {
-    local sites="google.com github.com yandex.ru"
+    local sites="google.com github.com yandex.ru amazon.com wikipedia.org"
     sep "=" "NETWORK"
     for site in $sites; do
-        if ping -c 1 -W 1 "$site" >/dev/null 2>&1; then
-            printf "[ \033[32mOK\033[0m ] %s\n" "$site"
+        if ping -c 1 -W 2 "$site" >/dev/null 2>&1; then
+            local ping_ms=$(ping -c 1 -W 2 "$site" | grep -oE 'time=[0-9.]+' | cut -d= -f2)
+            printf "[ \033[32mOK\033[0m ] %-15s — %s ms\n" "$site" "$ping_ms"
         else
-            printf "[ \033[31mFAIL\033[0m ] %s\n" "$site"
+            printf "[ \033[31mFAIL\033[0m ] %-15s\n" "$site"
         fi
     done
     sep "="
@@ -52,14 +72,26 @@ weather() {
     printf '\e[?1049l'
 }
 
-# Работа с пакетами
+# Работа с пакетами (с повышением привилегий)
 pack() {
     if command -v apt >/dev/null 2>&1; then
-        [ $# -gt 0 ] && sudo apt install "$@" || (sudo apt update && sudo apt upgrade)
+        if [ $# -gt 0 ]; then
+            run_as_root apt install "$@"
+        else
+            run_as_root apt update && run_as_root apt upgrade
+        fi
     elif command -v dnf >/dev/null 2>&1; then
-        [ $# -gt 0 ] && sudo dnf install "$@" || sudo dnf upgrade
+        if [ $# -gt 0 ]; then
+            run_as_root dnf install "$@"
+        else
+            run_as_root dnf upgrade
+        fi
     elif command -v pacman >/dev/null 2>&1; then
-        [ $# -gt 0 ] && sudo pacman -S "$@" || sudo pacman -Syu
+        if [ $# -gt 0 ]; then
+            run_as_root pacman -S "$@"
+        else
+            run_as_root pacman -Syu
+        fi
     fi
 }
 
@@ -125,4 +157,28 @@ view-docs() {
     elif command -v open >/dev/null 2>&1; then open "http://localhost:$PORT"
     fi
     miniserve "$DOCS_DIR" -p "$PORT" --index index.html
+}
+
+# Последняя сессия tmux
+latest() {
+    local sessions=$(tmux list-sessions -F "#{session_name} #{session_created}" 2>/dev/null)
+    [ -z "$sessions" ] && return 1
+    local latest_session=$(echo "$sessions" | sort -k2 -rn | head -1)
+    local session_name=$(echo "$latest_session" | awk '{print $1}')
+    local session_time=$(echo "$latest_session" | awk '{print $2}')
+    local now=$(date +%s)
+    echo "Сессия: $session_name ($(date -d "@$session_time" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "время неизвестно"))"
+    [ $(( now - session_time )) -lt 43200 ] && tmux attach-session -t "$session_name" || echo "Сессия старая, создайте новую"
+}
+
+# Проверка сети (старое название для совместимости)
+net() { site-check; }
+
+# Warp (древовидный список)
+warp() {
+    if command -v eza >/dev/null 2>&1; then
+        eza -T --git -s extension --icons --all "$@"
+    else
+        command tree -a "$@"
+    fi
 }
