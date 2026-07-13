@@ -8,20 +8,26 @@ run_as_root() {
         # Уже root
         "$@"
     else
-        # Не root - ищем доступный способ повышения привилегий
-        if command -v sudo >/dev/null 2>&1; then
-            sudo "$@"
-        elif command -v tsu >/dev/null 2>&1; then
-            # Стандарт для Termux
-            tsu "$@"
-        elif command -v doas >/dev/null 2>&1; then
-            doas "$@"
-        elif command -v su >/dev/null 2>&1; then
-            # Если su доступен, пробуем через него
-            su -c "$*"
-        else
-            # Если ничего не нашли, пробуем выполнить напрямую (может сработать в специфичных окружениях)
-            "$@"
+        # Не root - пробуем выполнить напрямую (для сред, где root не обязателен)
+        # Если команда завершилась с ошибкой доступа (126 или 127 в некоторых случаях), пробуем повысить права
+        "$@" 2>/dev/null
+        local status=$?
+        
+        # Если код ошибки указывает на проблему с правами (обычно 1, 126 или 127)
+        if [ $status -ne 0 ]; then
+            # Ищем доступный способ повышения привилегий
+            if command -v sudo >/dev/null 2>&1; then
+                sudo "$@"
+            elif command -v tsu >/dev/null 2>&1; then
+                tsu "$@"
+            elif command -v doas >/dev/null 2>&1; then
+                doas "$@"
+            elif command -v su >/dev/null 2>&1; then
+                su -c "$*"
+            else
+                # Если способов нет, возвращаем исходный статус
+                return $status
+            fi
         fi
     fi
 }
