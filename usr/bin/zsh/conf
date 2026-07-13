@@ -11,14 +11,34 @@ rush() {
             [ ! -d "$repo_dir" ] && echo "Репозиторий не найден" && return 1
             (
                 cd "$repo_dir" || exit 1
+                echo "Проверка обновлений..."
                 git fetch origin master 2>/dev/null
                 LOCAL=$(git rev-parse @)
                 REMOTE=$(git rev-parse origin/master)
                 if [[ "$LOCAL" == "$REMOTE" ]]; then
-                    echo "Актуальная версия."
+                    echo "У вас установлена актуальная версия."
                 else
-                    git pull origin master
-                    echo "Обновлено. Выполните: reload"
+                    echo "Доступно обновление. Загрузка..."
+                    # Сохраняем локальные изменения
+                    local stashed=false
+                    if ! git diff --quiet; then
+                        echo "Сохранение локальных изменений..."
+                        git stash push -m "Auto-stash before rush update"
+                        stashed=true
+                    fi
+                    
+                    if git pull origin master; then
+                        echo "Обновление успешно завершено."
+                        # Возвращаем изменения, если они были
+                        if [ "$stashed" = true ]; then
+                            echo "Восстановление локальных изменений..."
+                            git stash pop
+                        fi
+                        echo "Выполните: reload"
+                    else
+                        echo "Ошибка при обновлении. Попробуйте вручную в $repo_dir"
+                        [ "$stashed" = true ] && git stash pop
+                    fi
                 fi
             )
             ;;

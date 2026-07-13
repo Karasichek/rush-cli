@@ -8,14 +8,19 @@ run_as_root() {
         # Уже root
         "$@"
     else
-        # Не root
+        # Не root - ищем доступный способ повышения привилегий
         if command -v sudo >/dev/null 2>&1; then
             sudo "$@"
+        elif command -v tsu >/dev/null 2>&1; then
+            # Стандарт для Termux
+            tsu "$@"
         elif command -v doas >/dev/null 2>&1; then
             doas "$@"
         elif command -v su >/dev/null 2>&1; then
+            # Если su доступен, пробуем через него
             su -c "$*"
         else
+            # Если ничего не нашли, пробуем выполнить напрямую (может сработать в специфичных окружениях)
             "$@"
         fi
     fi
